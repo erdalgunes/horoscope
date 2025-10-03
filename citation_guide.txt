@@ -1,0 +1,14 @@
+KEY SECTIONS TO CITE:
+
+1. Executive Summary - Add disclaimer about interpretive nature
+2. Mental Health sections - Cite DSM-5-TR (American Psychiatric Association, 2022)
+3. Circadian rhythm - Cite Harvey (2008), Bradley et al. (2017), Li & Bruce (2023)
+4. INFP-T perfectionism - Cite NERIS Analytics (2023), Keirsey (1998)
+5. 8th house stellium - Cite astrological sources (Forrest, 2012; Cunningham, 1992)
+6. Jung references - Cite Jung (1959, 1973)
+7. Swiss Ephemeris - Cite Astrodienst (2014)
+8. Schizotypal - Cite DSM-5-TR and Raine (2006)
+
+CITATION FORMAT IN TYPST:
+- In-text: (Author, Year) or Author (Year)
+- References section at end with full citations

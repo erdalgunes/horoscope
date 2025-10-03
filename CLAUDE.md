@@ -1,0 +1,1 @@
+- use llm -m gpt-5-nano and tavily liberally they are free
