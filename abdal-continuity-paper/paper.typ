@@ -4,7 +4,7 @@
 // Document metadata
 #set document(
   title: "From Saloi to Abdal: Religious Continuity and Holy Foolishness in Anatolian Conversion to Islam",
-  author: "Author Name",
+  author: "Erdal Günes",
   keywords: ("Abdal", "saloi", "Anatolia", "conversion", "holy foolishness", "Bektashi", "religious syncretism", "menakibname", "vitae")
 )
 
@@ -50,9 +50,8 @@
   ]
   #v(8pt)
   #text(11pt)[
-    Author Name\
-    Affiliation\
-    #link("mailto:email@example.com")
+    Erdal Günes\
+    #link("mailto:erdalgns@gmail.com")
   ]
   #v(12pt)
 ]
@@ -60,27 +59,5 @@
 // Abstract
 #include "sections/abstract.typ"
 
-// Main content
-#include "sections/introduction.typ"
-
+// Literature Review
 #include "sections/literature.typ"
-
-#include "sections/methodology.typ"
-
-#include "sections/saloi.typ"
-
-#include "sections/abdals.typ"
-
-#include "sections/evidence.typ"
-
-#include "sections/analysis.typ"
-
-#include "sections/discussion.typ"
-
-#include "sections/limitations.typ"
-
-#include "sections/conclusion.typ"
-
-// Bibliography
-#pagebreak()
-#bibliography("references.bib", title: "References", style: "american-psychological-association")
