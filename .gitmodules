@@ -1,0 +1,4 @@
+[submodule "abdal-research-website"]
+	path = abdal-research-website
+	url = https://github.com/erdalgunes/abdal-research-website.git
+	branch = main
