@@ -31,8 +31,18 @@ jobs:
       - name: Run Research Quality Analyzer
         run: |
           cd abdal-research-website
-          npm run monitor:research-quality || true
+          npx tsx lib/monitoring/run-research-analyzer.ts || true
           # Continue even if critical gaps found (for artifact upload)
+
+      - name: Run Analytics Collector
+        run: |
+          cd abdal-research-website
+          npx tsx lib/monitoring/run-analytics-collector.ts || true
+
+      - name: Run Code Health Monitor
+        run: |
+          cd abdal-research-website
+          npx tsx lib/monitoring/run-code-health.ts || true
 
       - name: Upload Perception Data
         uses: actions/upload-artifact@v3
@@ -47,36 +57,34 @@ jobs:
         with:
           script: |
             const fs = require('fs');
+
+            // Load all perception data
             const gapsData = JSON.parse(fs.readFileSync('.ai-insights/research-gaps.json', 'utf8'));
+            const analyticsData = JSON.parse(fs.readFileSync('.ai-insights/user-behavior.json', 'utf8'));
+            const codeHealthData = JSON.parse(fs.readFileSync('.ai-insights/code-health.json', 'utf8'));
 
-            const summary = gapsData.summary;
-            const highPriority = gapsData.gaps
-              .filter(g => g.severity === 'critical' || g.severity === 'high')
-              .slice(0, 5);
+            let comment = `## 🔍 Perception Layer Analysis\n\n`;
 
-            let comment = `## 🔍 Research Quality Analysis\n\n`;
-            comment += `**Total gaps found:** ${summary.total}\n\n`;
-            comment += `**By type:**\n`;
-            comment += `- Weak arguments: ${summary.by_type.weak_argument}\n`;
-            comment += `- Broken references: ${summary.by_type.broken_reference}\n`;
-            comment += `- Outdated references: ${summary.by_type.outdated_reference}\n\n`;
-            comment += `**By severity:**\n`;
-            comment += `- 🔴 Critical: ${summary.by_severity.critical}\n`;
-            comment += `- 🟠 High: ${summary.by_severity.high}\n`;
-            comment += `- 🟡 Medium: ${summary.by_severity.medium}\n`;
-            comment += `- 🟢 Low: ${summary.by_severity.low}\n\n`;
+            // Research Quality
+            comment += `### 📚 Research Quality\n`;
+            comment += `**Total gaps:** ${gapsData.summary.total}\n`;
+            comment += `- 🔴 Critical: ${gapsData.summary.by_severity.critical}\n`;
+            comment += `- 🟠 High: ${gapsData.summary.by_severity.high}\n`;
+            comment += `- 🟡 Medium: ${gapsData.summary.by_severity.medium}\n\n`;
 
-            if (highPriority.length > 0) {
-              comment += `### Top ${highPriority.length} High-Priority Gaps:\n\n`;
-              highPriority.forEach((gap, index) => {
-                comment += `${index + 1}. **[${gap.severity.toUpperCase()}]** ${gap.type}\n`;
-                comment += `   - File: \`${gap.file.split('/').pop()}:${gap.line}\`\n`;
-                comment += `   - Section: ${gap.section}\n`;
-                comment += `   - Action: ${gap.suggested_action}\n\n`;
-              });
-            }
+            // User Behavior
+            comment += `### 👥 User Behavior\n`;
+            comment += `**Sections analyzed:** ${analyticsData.summary.total_sections}\n`;
+            comment += `**Content gaps:** ${analyticsData.summary.content_gaps_identified}\n`;
+            comment += `**Top confusion:** "${analyticsData.chat_confusion_patterns[0]?.query}" (${analyticsData.chat_confusion_patterns[0]?.frequency}x)\n\n`;
 
-            comment += `\n📊 Full report available in workflow artifacts`;
+            // Code Health
+            comment += `### 💻 Code Health\n`;
+            comment += `**Bundle size:** ${(codeHealthData.bundle_analysis.main_bundle_size / 1000).toFixed(0)}KB / ${(codeHealthData.bundle_analysis.threshold / 1000).toFixed(0)}KB\n`;
+            comment += `**Cache efficiency:** ${(codeHealthData.cache_performance.cache_efficiency_score * 100).toFixed(0)}%\n`;
+            comment += `**Cost savings:** $${codeHealthData.cache_performance.cost_savings_monthly}/month\n\n`;
+
+            comment += `📊 Full reports available in workflow artifacts`;
 
             github.rest.repos.createCommitComment({
               owner: context.repo.owner,
