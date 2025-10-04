@@ -1,0 +1,121 @@
+name: Perception Layer - Research Quality Analysis
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 2 AM UTC
+  workflow_dispatch:  # Allow manual triggering
+  push:
+    paths:
+      - '**.typ'
+      - '**.bib'
+      - 'abdal-research-website/lib/monitoring/**'
+
+jobs:
+  analyze-research-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: abdal-research-website/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd abdal-research-website
+          npm ci
+
+      - name: Run Research Quality Analyzer
+        run: |
+          cd abdal-research-website
+          npm run monitor:research-quality || true
+          # Continue even if critical gaps found (for artifact upload)
+
+      - name: Upload Perception Data
+        uses: actions/upload-artifact@v3
+        with:
+          name: perception-data-${{ github.run_number }}
+          path: .ai-insights/
+          retention-days: 30
+
+      - name: Comment on commit with summary
+        if: github.event_name == 'push'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const gapsData = JSON.parse(fs.readFileSync('.ai-insights/research-gaps.json', 'utf8'));
+
+            const summary = gapsData.summary;
+            const highPriority = gapsData.gaps
+              .filter(g => g.severity === 'critical' || g.severity === 'high')
+              .slice(0, 5);
+
+            let comment = `## 🔍 Research Quality Analysis\n\n`;
+            comment += `**Total gaps found:** ${summary.total}\n\n`;
+            comment += `**By type:**\n`;
+            comment += `- Weak arguments: ${summary.by_type.weak_argument}\n`;
+            comment += `- Broken references: ${summary.by_type.broken_reference}\n`;
+            comment += `- Outdated references: ${summary.by_type.outdated_reference}\n\n`;
+            comment += `**By severity:**\n`;
+            comment += `- 🔴 Critical: ${summary.by_severity.critical}\n`;
+            comment += `- 🟠 High: ${summary.by_severity.high}\n`;
+            comment += `- 🟡 Medium: ${summary.by_severity.medium}\n`;
+            comment += `- 🟢 Low: ${summary.by_severity.low}\n\n`;
+
+            if (highPriority.length > 0) {
+              comment += `### Top ${highPriority.length} High-Priority Gaps:\n\n`;
+              highPriority.forEach((gap, index) => {
+                comment += `${index + 1}. **[${gap.severity.toUpperCase()}]** ${gap.type}\n`;
+                comment += `   - File: \`${gap.file.split('/').pop()}:${gap.line}\`\n`;
+                comment += `   - Section: ${gap.section}\n`;
+                comment += `   - Action: ${gap.suggested_action}\n\n`;
+              });
+            }
+
+            comment += `\n📊 Full report available in workflow artifacts`;
+
+            github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+              body: comment
+            });
+
+      - name: Create issue for critical gaps
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const gapsData = JSON.parse(fs.readFileSync('.ai-insights/research-gaps.json', 'utf8'));
+
+            const criticalGaps = gapsData.gaps.filter(g => g.severity === 'critical');
+            const highGaps = gapsData.gaps.filter(g => g.severity === 'high');
+
+            if (criticalGaps.length > 0 || highGaps.length > 5) {
+              let body = `# Research Quality Alert\n\n`;
+              body += `Automated analysis found **${criticalGaps.length} critical** and **${highGaps.length} high-priority** gaps.\n\n`;
+
+              if (criticalGaps.length > 0) {
+                body += `## 🔴 Critical Gaps (Immediate Action Required)\n\n`;
+                criticalGaps.forEach(gap => {
+                  body += `- **${gap.file.split('/').pop()}:${gap.line}** - ${gap.type}\n`;
+                  body += `  - Context: ${gap.context.slice(0, 100)}...\n`;
+                  body += `  - Action: ${gap.suggested_action}\n\n`;
+                });
+              }
+
+              body += `\n[View full report in workflow artifacts](${context.payload.repository.html_url}/actions/runs/${context.runId})`;
+
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `Research Quality: ${criticalGaps.length} critical, ${highGaps.length} high-priority gaps found`,
+                body: body,
+                labels: ['research-quality', 'automated']
+              });
+            }
